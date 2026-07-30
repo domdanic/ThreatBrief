@@ -1,0 +1,22 @@
+<Application
+    x:Class="ThreatBrief.Desktop.App"
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <Application.Styles>
+    <FluentTheme />
+    <Style Selector="Button.primary">
+      <Setter Property="Background" Value="#C53B3F" />
+      <Setter Property="Foreground" Value="White" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+    <Style Selector="TextBlock.muted">
+      <Setter Property="Foreground" Value="#9EA4AE" />
+    </Style>
+    <Style Selector="Border.panel">
+      <Setter Property="Background" Value="#171A20" />
+      <Setter Property="CornerRadius" Value="8" />
+      <Setter Property="Padding" Value="16" />
+    </Style>
+  </Application.Styles>
+</Application>
+

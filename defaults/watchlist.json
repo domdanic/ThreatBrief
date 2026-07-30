@@ -1,0 +1,26 @@
+{
+  "AlertWindowDays": 30,
+  "Connectors": {
+    "OtxEnabled": false,
+    "ThreatFoxEnabled": false,
+    "OtxLookbackDays": 7,
+    "ThreatFoxLookbackDays": 3
+  },
+  "Updates": {
+    "CheckOnStartup": true,
+    "GitHubRepository": "domdanic/ThreatBrief",
+    "Channel": "stable"
+  },
+  "Terms": [
+    "Microsoft",
+    "Windows",
+    "Microsoft 365",
+    "Cisco",
+    "Fortinet",
+    "VMware",
+    "Adobe",
+    "Chrome",
+    "Exchange",
+    "Hyper-V"
+  ]
+}

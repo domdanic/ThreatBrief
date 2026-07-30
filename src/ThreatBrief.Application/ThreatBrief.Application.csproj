@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="../ThreatBrief.Core/ThreatBrief.Core.csproj" />
+    <ProjectReference Include="../ThreatBrief.Data/ThreatBrief.Data.csproj" />
+  </ItemGroup>
+</Project>
+

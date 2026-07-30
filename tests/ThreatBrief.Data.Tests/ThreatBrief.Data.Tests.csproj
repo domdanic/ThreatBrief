@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/ThreatBrief.Core/ThreatBrief.Core.csproj" />
+    <ProjectReference Include="../../src/ThreatBrief.Data/ThreatBrief.Data.csproj" />
+    <ProjectReference Include="../../src/ThreatBrief.Application/ThreatBrief.Application.csproj" />
+  </ItemGroup>
+</Project>

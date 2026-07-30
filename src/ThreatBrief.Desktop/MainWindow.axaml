@@ -1,0 +1,370 @@
+<Window
+    x:Class="ThreatBrief.Desktop.MainWindow"
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Title="ThreatBrief"
+    Icon="/Assets/ThreatBrief.ico"
+    Width="1280"
+    Height="800"
+    MinWidth="960"
+    MinHeight="640"
+    Background="#0D0F13">
+  <Grid RowDefinitions="Auto,Auto,Auto,*">
+    <Border Background="#15181E" Padding="22,16">
+      <Grid ColumnDefinitions="*,Auto">
+        <StackPanel>
+          <TextBlock Text="THREATBRIEF" FontSize="25" FontWeight="Bold" Foreground="#F2F4F8" />
+          <TextBlock Text="Defensive vulnerability intelligence" Classes="muted" />
+        </StackPanel>
+        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+          <TextBlock x:Name="UnreadCountText" Text="0 unread" Classes="muted" VerticalAlignment="Center" />
+          <Button Content="Mark all read" Click="MarkAllReadButton_OnClick" />
+          <Button x:Name="RefreshButton" Content="Refresh intelligence" Classes="primary"
+                  Padding="18,10" Click="RefreshButton_OnClick" />
+        </StackPanel>
+      </Grid>
+    </Border>
+
+    <Border Grid.Row="1" Background="#0D0F13" Padding="22,14">
+      <Grid ColumnDefinitions="*,*,*,*,2*" ColumnSpacing="12">
+        <Border Classes="panel" Padding="14">
+          <StackPanel>
+            <TextBlock Text="CRITICAL PRIORITY" Classes="muted" FontSize="11" />
+            <TextBlock x:Name="CriticalCountText" Text="0" FontSize="27"
+                       Foreground="#FF6B6F" FontWeight="Bold" />
+          </StackPanel>
+        </Border>
+        <Border Grid.Column="1" Classes="panel" Padding="14">
+          <StackPanel>
+            <TextBlock Text="WATCHLIST MATCHES" Classes="muted" FontSize="11" />
+            <TextBlock x:Name="WatchlistCountText" Text="0" FontSize="27"
+                       Foreground="#70C8FF" FontWeight="Bold" />
+          </StackPanel>
+        </Border>
+        <Border Grid.Column="2" Classes="panel" Padding="14">
+          <StackPanel>
+            <TextBlock Text="DUE THIS WEEK" Classes="muted" FontSize="11" />
+            <TextBlock x:Name="DueSoonCountText" Text="0" FontSize="27"
+                       Foreground="#FFCC66" FontWeight="Bold" />
+          </StackPanel>
+        </Border>
+        <Border Grid.Column="3" Classes="panel" Padding="14">
+          <StackPanel>
+            <TextBlock Text="OVERDUE" Classes="muted" FontSize="11" />
+            <TextBlock x:Name="OverdueCountText" Text="0" FontSize="27"
+                       Foreground="#F18A67" FontWeight="Bold" />
+          </StackPanel>
+        </Border>
+        <Border Grid.Column="4" Classes="panel" Padding="14">
+          <StackPanel Spacing="4">
+            <TextBlock Text="SOURCE HEALTH" Classes="muted" FontSize="11" />
+            <TextBlock x:Name="AlertWindowText" Text="Alert window: 30 days"
+                       Foreground="#FFCC66" FontSize="11" />
+            <TextBlock x:Name="SourceHealthText" Text="Loading..."
+                       Foreground="#B9E6C5" TextWrapping="Wrap" />
+          </StackPanel>
+        </Border>
+      </Grid>
+    </Border>
+
+    <Border Grid.Row="2" Background="#11141A" Padding="22,12">
+      <Grid ColumnDefinitions="*,Auto,Auto,Auto,Auto,Auto" ColumnSpacing="12">
+        <TextBox x:Name="SearchBox" PlaceholderText="Search CVE, vendor, product, or description..."
+                 KeyUp="SearchBox_OnKeyUp" />
+        <ComboBox x:Name="RangeBox" Grid.Column="1" Width="180"
+                  SelectionChanged="Filter_OnChanged" SelectedIndex="1">
+          <ComboBoxItem Content="Last 24 hours" Tag="1" />
+          <ComboBoxItem Content="Last 7 days" Tag="7" />
+          <ComboBoxItem Content="Last 30 days" Tag="30" />
+          <ComboBoxItem Content="Inbox" Tag="inbox" />
+          <ComboBoxItem Content="Due soon" Tag="due" />
+          <ComboBoxItem Content="Overdue" Tag="overdue" />
+          <ComboBoxItem Content="Ransomware-linked" Tag="ransomware" />
+          <ComboBoxItem Content="Saved" Tag="saved" />
+          <ComboBoxItem Content="All history" Tag="all" />
+        </ComboBox>
+        <CheckBox x:Name="UnreadOnlyBox" Grid.Column="2" Content="Unread only"
+                  VerticalAlignment="Center" IsCheckedChanged="Filter_OnChanged" />
+        <CheckBox x:Name="WatchlistOnlyBox" Grid.Column="3" Content="Watchlist only"
+                  VerticalAlignment="Center" IsCheckedChanged="Filter_OnChanged" />
+        <ComboBox x:Name="BulkStatusBox" Grid.Column="4" Width="135"
+                  PlaceholderText="Set visible...">
+          <ComboBoxItem Content="Handled" />
+          <ComboBoxItem Content="Not Applicable" />
+          <ComboBoxItem Content="Ignored" />
+          <ComboBoxItem Content="Backlog" />
+        </ComboBox>
+        <Button Grid.Column="5" Content="Apply to visible"
+                Click="ApplyBulkStatusButton_OnClick" />
+      </Grid>
+    </Border>
+
+    <TabControl Grid.Row="3" x:Name="MainTabs">
+      <TabItem Header="Vulnerabilities">
+    <Grid ColumnDefinitions="430,*" ColumnSpacing="16" Margin="22,16,22,22">
+      <Border Classes="panel">
+        <Grid RowDefinitions="Auto,*">
+          <TextBlock x:Name="ResultsHeader" Text="Recent threats" FontSize="17"
+                     FontWeight="SemiBold" Margin="0,0,0,12" />
+          <ListBox x:Name="ThreatList" Grid.Row="1" SelectionChanged="ThreatList_OnSelectionChanged">
+            <ListBox.ItemTemplate>
+              <DataTemplate>
+                <Border Padding="10" Margin="0,0,0,6" CornerRadius="5" Background="#20242C">
+                  <StackPanel Spacing="4">
+                    <Grid ColumnDefinitions="*,Auto">
+                      <TextBlock Text="{Binding Id}" Foreground="#E96568" FontWeight="Bold" />
+                      <TextBlock Grid.Column="1" Text="{Binding PriorityLabel}"
+                                 Foreground="#FFCC66" FontWeight="Bold" />
+                    </Grid>
+                    <TextBlock Text="{Binding Title}" TextWrapping="Wrap" MaxLines="2"
+                               Foreground="#F2F4F8" />
+                    <Grid ColumnDefinitions="*,Auto">
+                      <TextBlock Text="{Binding VendorProduct}" Classes="muted" />
+                      <TextBlock Grid.Column="1" Text="{Binding SeverityLabel}"
+                                 Foreground="#F1B35C" FontWeight="SemiBold" />
+                    </Grid>
+                    <TextBlock Text="{Binding RelevanceLabel}" Foreground="#70C8FF"
+                               FontSize="11" FontWeight="Bold" />
+                    <TextBlock Text="{Binding SourceLabel}" Classes="muted" FontSize="11" />
+                  </StackPanel>
+                </Border>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+        </Grid>
+      </Border>
+
+      <Border Grid.Column="1" Classes="panel">
+        <ScrollViewer>
+          <StackPanel x:Name="DetailPanel" Spacing="14">
+            <TextBlock x:Name="EmptyDetailText"
+                       Text="Select a threat to read its briefing."
+                       Classes="muted" FontSize="17" />
+            <StackPanel x:Name="SelectedDetail" IsVisible="False" Spacing="14">
+              <Grid ColumnDefinitions="*,Auto">
+                <StackPanel>
+                  <TextBlock x:Name="DetailId" Foreground="#E96568" FontSize="16" FontWeight="Bold" />
+                  <TextBlock x:Name="DetailTitle" FontSize="25" FontWeight="SemiBold"
+                             Foreground="#F2F4F8" TextWrapping="Wrap" />
+                </StackPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                  <Button x:Name="ReadButton" Content="Mark read" Click="ReadButton_OnClick" />
+                  <Button x:Name="SaveButton" Content="Save" Click="SaveButton_OnClick" />
+                  <Button x:Name="EnrichButton" Content="Enrich from NVD"
+                          Click="EnrichButton_OnClick" />
+                  <ComboBox x:Name="TriageStatusBox" Width="145"
+                            SelectionChanged="TriageStatusBox_OnSelectionChanged">
+                    <ComboBoxItem Content="New" />
+                    <ComboBoxItem Content="Reviewing" />
+                    <ComboBoxItem Content="Action Required" />
+                    <ComboBoxItem Content="Handled" />
+                    <ComboBoxItem Content="Not Applicable" />
+                    <ComboBoxItem Content="Ignored" />
+                    <ComboBoxItem Content="Resolved" />
+                    <ComboBoxItem Content="Backlog" />
+                    <ComboBoxItem Content="Dismissed" />
+                  </ComboBox>
+                </StackPanel>
+              </Grid>
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <TextBlock Text="QUICK DISPOSITION" Classes="muted"
+                           VerticalAlignment="Center" Margin="0,0,6,0" />
+                <Button Content="Handled" Click="HandledButton_OnClick" />
+                <Button Content="Not applicable" Click="NotApplicableButton_OnClick" />
+                <Button Content="Ignore" Click="IgnoreButton_OnClick" />
+              </StackPanel>
+              <Border Background="#20242C" CornerRadius="6" Padding="14">
+                <Grid ColumnDefinitions="*,*,*" RowDefinitions="Auto,Auto" RowSpacing="5">
+                  <TextBlock Text="VENDOR / PRODUCT" Classes="muted" />
+                  <TextBlock Grid.Column="1" Text="CISA ADDED" Classes="muted" />
+                  <TextBlock Grid.Column="2" Text="REMEDIATION DUE" Classes="muted" />
+                  <TextBlock x:Name="DetailVendorProduct" Grid.Row="1" Foreground="#F2F4F8" />
+                  <TextBlock x:Name="DetailDateAdded" Grid.Row="1" Grid.Column="1" Foreground="#F2F4F8" />
+                  <TextBlock x:Name="DetailDueDate" Grid.Row="1" Grid.Column="2" Foreground="#F2F4F8" />
+                </Grid>
+              </Border>
+              <Border Background="#2B2420" BorderBrush="#80612B" BorderThickness="1"
+                      CornerRadius="6" Padding="14">
+                <StackPanel Spacing="6">
+                  <TextBlock x:Name="DetailPriority" Foreground="#FFCC66"
+                             FontSize="20" FontWeight="Bold" />
+                  <TextBlock x:Name="DetailPriorityReasons" TextWrapping="Wrap"
+                             Foreground="#E8D8B5" />
+                </StackPanel>
+              </Border>
+              <Border Background="#20242C" CornerRadius="6" Padding="14">
+                <Grid ColumnDefinitions="*,*,*" RowDefinitions="Auto,Auto" RowSpacing="5">
+                  <TextBlock Text="CVSS / SEVERITY" Classes="muted" />
+                  <TextBlock Grid.Column="1" Text="ATTACK VECTOR" Classes="muted" />
+                  <TextBlock Grid.Column="2" Text="WATCHLIST RELEVANCE" Classes="muted" />
+                  <TextBlock x:Name="DetailSeverity" Grid.Row="1" Foreground="#F1B35C"
+                             FontWeight="Bold" />
+                  <TextBlock x:Name="DetailAttack" Grid.Row="1" Grid.Column="1"
+                             Foreground="#F2F4F8" />
+                  <TextBlock x:Name="DetailRelevance" Grid.Row="1" Grid.Column="2"
+                             Foreground="#70C8FF" TextWrapping="Wrap" />
+                </Grid>
+              </Border>
+              <TextBlock Text="WHAT THE THREAT IS" Classes="muted" FontWeight="SemiBold" />
+              <TextBlock x:Name="DetailDescription" TextWrapping="Wrap" FontSize="16"
+                         Foreground="#E4E7EC" LineHeight="24" />
+              <TextBlock Text="REQUIRED ACTION" Classes="muted" FontWeight="SemiBold" />
+              <Border Background="#281D1F" BorderBrush="#6E3033" BorderThickness="1"
+                      CornerRadius="6" Padding="14">
+                <TextBlock x:Name="DetailAction" TextWrapping="Wrap" Foreground="#F3DCDD" />
+              </Border>
+              <TextBlock x:Name="DetailRansomware" />
+              <TextBlock x:Name="DetailSource" Classes="muted" TextWrapping="Wrap" />
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <Button Content="Open CISA catalog" Click="OpenCisaButton_OnClick" />
+                <Button Content="Open NVD record" Click="OpenNvdButton_OnClick" />
+              </StackPanel>
+              <TextBlock Text="This product uses data from the NVD API but is not endorsed or certified by the NVD."
+                         Classes="muted" FontSize="11" />
+            </StackPanel>
+          </StackPanel>
+        </ScrollViewer>
+      </Border>
+    </Grid>
+      </TabItem>
+
+      <TabItem Header="Reports">
+        <Grid ColumnDefinitions="430,*" ColumnSpacing="16" Margin="22,16,22,22">
+          <Border Classes="panel">
+            <Grid RowDefinitions="Auto,*">
+              <TextBlock x:Name="ReportsHeader" Text="Intelligence reports"
+                         FontSize="17" FontWeight="SemiBold" Margin="0,0,0,12" />
+              <ListBox x:Name="ReportList" Grid.Row="1"
+                       SelectionChanged="ReportList_OnSelectionChanged">
+                <ListBox.ItemTemplate>
+                  <DataTemplate>
+                    <Border Padding="10" Margin="0,0,0,6" CornerRadius="5" Background="#20242C">
+                      <StackPanel Spacing="4">
+                        <TextBlock Text="{Binding Title}" Foreground="#F2F4F8"
+                                   FontWeight="SemiBold" TextWrapping="Wrap" MaxLines="2" />
+                        <Grid ColumnDefinitions="*,Auto">
+                          <TextBlock Text="{Binding Source}" Foreground="#70C8FF" />
+                          <TextBlock Grid.Column="1" Text="{Binding Date}" Classes="muted" />
+                        </Grid>
+                        <TextBlock Text="{Binding RelationshipSummary}" Classes="muted" />
+                      </StackPanel>
+                    </Border>
+                  </DataTemplate>
+                </ListBox.ItemTemplate>
+              </ListBox>
+            </Grid>
+          </Border>
+          <Border Grid.Column="1" Classes="panel">
+            <ScrollViewer>
+              <StackPanel Spacing="14">
+                <TextBlock x:Name="ReportDetailTitle" Text="Select an intelligence report."
+                           FontSize="24" FontWeight="SemiBold" TextWrapping="Wrap" />
+                <TextBlock x:Name="ReportDetailSource" Foreground="#70C8FF" />
+                <TextBlock x:Name="ReportDetailDescription" TextWrapping="Wrap"
+                           FontSize="16" LineHeight="24" />
+                <TextBlock x:Name="ReportDetailRelations" TextWrapping="Wrap" />
+                <Button Content="Open source report" HorizontalAlignment="Left"
+                        Click="OpenReportButton_OnClick" />
+              </StackPanel>
+            </ScrollViewer>
+          </Border>
+        </Grid>
+      </TabItem>
+
+      <TabItem Header="Indicators">
+        <Grid Margin="22,16,22,22">
+          <Border Classes="panel">
+            <Grid RowDefinitions="Auto,*">
+              <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,12">
+                <TextBlock x:Name="IndicatorsHeader" Text="Active indicators"
+                           FontSize="17" FontWeight="SemiBold" />
+                <CheckBox x:Name="ActiveIndicatorsOnlyBox" Grid.Column="1"
+                          Content="Active only" IsChecked="True"
+                          IsCheckedChanged="IndicatorFilter_OnChanged" />
+              </Grid>
+              <ListBox x:Name="IndicatorList" Grid.Row="1">
+                <ListBox.ItemTemplate>
+                  <DataTemplate>
+                    <Border Padding="10" Margin="0,0,0,5" CornerRadius="5" Background="#20242C">
+                      <Grid ColumnDefinitions="110,*,150,100,180" ColumnSpacing="10">
+                        <TextBlock Text="{Binding Type}" Foreground="#70C8FF" FontWeight="Bold" />
+                        <TextBlock Grid.Column="1" Text="{Binding Value}" TextWrapping="Wrap" />
+                        <TextBlock Grid.Column="2" Text="{Binding Malware}" />
+                        <TextBlock Grid.Column="3" Text="{Binding Confidence}" />
+                        <TextBlock Grid.Column="4" Text="{Binding Sources}" Classes="muted" />
+                      </Grid>
+                    </Border>
+                  </DataTemplate>
+                </ListBox.ItemTemplate>
+              </ListBox>
+            </Grid>
+          </Border>
+        </Grid>
+      </TabItem>
+
+      <TabItem Header="Sources &amp; Settings">
+        <ScrollViewer>
+          <Grid ColumnDefinitions="*,*" ColumnSpacing="16" Margin="22,16,22,22">
+            <Border Classes="panel">
+              <StackPanel Spacing="12">
+                <TextBlock Text="COMMUNITY SOURCES" Classes="muted" FontWeight="SemiBold" />
+                <CheckBox x:Name="OtxEnabledBox" Content="Enable AlienVault OTX" />
+                <TextBlock Text="OTX API key" Classes="muted" />
+                <TextBox x:Name="OtxKeyBox" PasswordChar="●" />
+                <CheckBox x:Name="ThreatFoxEnabledBox" Content="Enable abuse.ch ThreatFox" />
+                <TextBlock Text="abuse.ch Auth-Key" Classes="muted" />
+                <TextBox x:Name="AbuseKeyBox" PasswordChar="●" />
+                <TextBlock Text="Keys are stored in portable plaintext settings. Protect the drive."
+                           Foreground="#FFCC66" TextWrapping="Wrap" />
+                <Button Content="Save source settings" Classes="primary"
+                        Click="SaveSettingsButton_OnClick" />
+                <Button Content="Refresh community sources"
+                        Click="RefreshCommunityButton_OnClick" />
+                <TextBlock x:Name="CommunityStatusText" Classes="muted" TextWrapping="Wrap" />
+              </StackPanel>
+            </Border>
+            <Border Grid.Column="1" Classes="panel">
+              <StackPanel Spacing="12">
+                <TextBlock Text="ALERTS &amp; WATCHLIST" Classes="muted" FontWeight="SemiBold" />
+                <TextBlock Text="Alert window (days)" Classes="muted" />
+                <NumericUpDown x:Name="AlertWindowBox" Minimum="1" Maximum="3650" />
+                <TextBlock Text="Watchlist terms — one per line" Classes="muted" />
+                <TextBox x:Name="WatchlistTermsBox" AcceptsReturn="True"
+                         MinHeight="240" TextWrapping="Wrap" />
+                <Button Content="Save alert settings" Classes="primary"
+                        Click="SaveSettingsButton_OnClick" />
+                <TextBlock Text="Updates and release channel" Classes="muted"
+                           FontWeight="SemiBold" Margin="0,10,0,0" />
+                <TextBox x:Name="GitHubRepositoryBox"
+                         PlaceholderText="domdanic/ThreatBrief" />
+                <CheckBox x:Name="CheckUpdatesBox" Content="Check for updates on startup" />
+                <Button Content="Check for updates now" Click="CheckUpdatesButton_OnClick" />
+                <TextBlock x:Name="UpdateStatusText" Classes="muted" TextWrapping="Wrap" />
+                <TextBlock Text="MAINTENANCE" Classes="muted"
+                           FontWeight="SemiBold" Margin="0,10,0,0" />
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <Button Content="Generate daily briefing"
+                          Click="GenerateBriefingButton_OnClick" />
+                  <Button Content="Create backup" Click="CreateBackupButton_OnClick" />
+                  <Button Content="Restore backup" Click="RestoreBackupButton_OnClick" />
+                </StackPanel>
+                <TextBlock x:Name="MaintenanceStatusText" Classes="muted"
+                           TextWrapping="Wrap" />
+                <TextBlock x:Name="VersionText" Classes="muted" Margin="0,10,0,0" />
+              </StackPanel>
+            </Border>
+          </Grid>
+        </ScrollViewer>
+      </TabItem>
+    </TabControl>
+
+    <Border Grid.Row="3" x:Name="StatusOverlay" IsVisible="False"
+            Background="#CC0D0F13" ZIndex="10">
+      <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="12">
+        <ProgressBar IsIndeterminate="True" Width="260" />
+        <TextBlock x:Name="StatusText" Text="Refreshing intelligence..."
+                   Foreground="White" FontSize="16" HorizontalAlignment="Center" />
+      </StackPanel>
+    </Border>
+  </Grid>
+</Window>

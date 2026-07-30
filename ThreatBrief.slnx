@@ -1,0 +1,8 @@
+<Solution>
+  <Project Path="src/ThreatBrief.Core/ThreatBrief.Core.csproj" />
+  <Project Path="src/ThreatBrief.Data/ThreatBrief.Data.csproj" />
+  <Project Path="src/ThreatBrief.Application/ThreatBrief.Application.csproj" />
+  <Project Path="src/ThreatBrief.Cli/ThreatBrief.Cli.csproj" />
+  <Project Path="src/ThreatBrief.Desktop/ThreatBrief.Desktop.csproj" />
+  <Project Path="tests/ThreatBrief.Data.Tests/ThreatBrief.Data.Tests.csproj" />
+</Solution>

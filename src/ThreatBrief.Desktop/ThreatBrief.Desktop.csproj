@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <AssemblyName>ThreatBrief</AssemblyName>
+    <RootNamespace>ThreatBrief.Desktop</RootNamespace>
+    <Version>1.0.0</Version>
+    <Product>ThreatBrief</Product>
+    <Description>Portable defensive threat intelligence briefing and triage.</Description>
+    <Authors>ThreatBrief Contributors</Authors>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets/ThreatBrief.ico</ApplicationIcon>
+    <AvaloniaUseCompiledBindingsByDefault>false</AvaloniaUseCompiledBindingsByDefault>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../ThreatBrief.Core/ThreatBrief.Core.csproj" />
+    <ProjectReference Include="../ThreatBrief.Data/ThreatBrief.Data.csproj" />
+    <ProjectReference Include="../ThreatBrief.Application/ThreatBrief.Application.csproj" />
+    <PackageReference Include="Avalonia.Desktop" Version="12.1.0" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.0" />
+  </ItemGroup>
+  <ItemGroup>
+    <AvaloniaResource Include="Assets/**" />
+    <None Include="../../Invoke-ThreatBrief.ps1"
+          Link="Invoke-ThreatBrief.ps1"
+          CopyToOutputDirectory="PreserveNewest"
+          CopyToPublishDirectory="PreserveNewest" />
+    <None Include="../ThreatBrief.PowerShell/ThreatBrief.psd1"
+          Link="src/ThreatBrief.PowerShell/ThreatBrief.psd1"
+          CopyToOutputDirectory="PreserveNewest"
+          CopyToPublishDirectory="PreserveNewest" />
+    <None Include="../ThreatBrief.PowerShell/ThreatBrief.psm1"
+          Link="src/ThreatBrief.PowerShell/ThreatBrief.psm1"
+          CopyToOutputDirectory="PreserveNewest"
+          CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>
