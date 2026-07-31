@@ -19,6 +19,7 @@
     "Endpoint": "https://api.openai.com/v1",
     "Model": "gpt-5.6-sol",
     "RequestTimeoutSeconds": 90,
+    "OllamaRequestTimeoutSeconds": 300,
     "AutoStartLocalOllama": false,
     "StopLocalOllamaOnExit": true,
     "LocalOllamaPath": "..\\PortableOllama"

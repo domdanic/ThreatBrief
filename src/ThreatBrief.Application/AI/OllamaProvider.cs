@@ -21,7 +21,7 @@ public sealed class OllamaProvider : IAiProvider
         _model = model;
         _httpClient = httpClient ?? new HttpClient
         {
-            Timeout = TimeSpan.FromSeconds(Math.Clamp(timeoutSeconds, 10, 600))
+            Timeout = TimeSpan.FromSeconds(Math.Clamp(timeoutSeconds, 30, 3600))
         };
     }
 

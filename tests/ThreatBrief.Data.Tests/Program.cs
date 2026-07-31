@@ -24,6 +24,12 @@ try
     var paths = PortableDataPaths.At(testRoot);
     paths.EnsureCreated();
     Assert(Directory.Exists(paths.ReportsPath), "Portable report directory should be created");
+    Assert(new AiSettings().OllamaRequestTimeoutSeconds == 300,
+        "Ollama requests should default to a five-minute timeout");
+    var legacyAiSettings = JsonSerializer.Deserialize<AiSettings>(
+        """{"Provider":"Ollama","RequestTimeoutSeconds":90}""");
+    Assert(legacyAiSettings?.OllamaRequestTimeoutSeconds == 300,
+        "Existing settings should inherit the new five-minute Ollama timeout");
 
     Assert(LocalOllamaLifecycleService.IsLocalEndpoint("http://127.0.0.1:11434"),
         "Ollama lifecycle should accept the IPv4 loopback endpoint");

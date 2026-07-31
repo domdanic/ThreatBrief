@@ -383,6 +383,11 @@
                 <ComboBox x:Name="AiInstalledModelsBox"
                           PlaceholderText="Installed Ollama models"
                           SelectionChanged="AiInstalledModelsBox_OnSelectionChanged" />
+                <TextBlock Text="Ollama request timeout (seconds)" Classes="muted" />
+                <NumericUpDown x:Name="AiOllamaTimeoutBox"
+                               Minimum="30" Maximum="3600" Increment="30" />
+                <TextBlock Text="Five minutes is recommended for slower machines and cold model loads."
+                           Classes="muted" TextWrapping="Wrap" />
                 <TextBlock Text="API key (not required for local Ollama)" Classes="muted" />
                 <TextBox x:Name="AiApiKeyBox" PasswordChar="●" />
                 <CheckBox x:Name="AiAutoStartOllamaBox"
