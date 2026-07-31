@@ -253,6 +253,7 @@ public sealed partial class MainWindow : Window
         AiConsentBox.IsChecked = _watchlist.Ai.DataSharingConsent;
         AiEndpointBox.Text = _watchlist.Ai.Endpoint;
         AiModelBox.Text = _watchlist.Ai.Model;
+        AiOllamaTimeoutBox.Value = _watchlist.Ai.OllamaRequestTimeoutSeconds;
         AiApiKeyBox.Text = secrets.AiApiKey;
         AiAutoStartOllamaBox.IsChecked = _watchlist.Ai.AutoStartLocalOllama;
         AiStopOllamaOnExitBox.IsChecked = _watchlist.Ai.StopLocalOllamaOnExit;
@@ -304,6 +305,7 @@ public sealed partial class MainWindow : Window
                 Endpoint = (AiEndpointBox.Text ?? string.Empty).Trim(),
                 Model = (AiModelBox.Text ?? string.Empty).Trim(),
                 RequestTimeoutSeconds = _watchlist.Ai.RequestTimeoutSeconds,
+                OllamaRequestTimeoutSeconds = (int)(AiOllamaTimeoutBox.Value ?? 300),
                 AutoStartLocalOllama = AiAutoStartOllamaBox.IsChecked == true,
                 StopLocalOllamaOnExit = AiStopOllamaOnExitBox.IsChecked == true,
                 LocalOllamaPath = (AiLocalOllamaPathBox.Text ?? string.Empty).Trim()
@@ -371,6 +373,7 @@ public sealed partial class MainWindow : Window
             Endpoint = (AiEndpointBox.Text ?? string.Empty).Trim(),
             Model = (AiModelBox.Text ?? string.Empty).Trim(),
             RequestTimeoutSeconds = _watchlist.Ai.RequestTimeoutSeconds,
+            OllamaRequestTimeoutSeconds = (int)(AiOllamaTimeoutBox.Value ?? 300),
             AutoStartLocalOllama = AiAutoStartOllamaBox.IsChecked == true,
             StopLocalOllamaOnExit = AiStopOllamaOnExitBox.IsChecked == true,
             LocalOllamaPath = (AiLocalOllamaPathBox.Text ?? string.Empty).Trim()

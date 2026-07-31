@@ -280,7 +280,9 @@ The folder picker stores a relative path when both folders are on the same
 drive, preserving portability. Standard Ollama installation folders containing
 `ollama.exe` are also supported. Use **Detect models** to populate the installed
 model list from the configured Ollama endpoint. Manual model entry remains
-available. Automatic process control is restricted to localhost endpoints.
+available. Ollama requests default to a five-minute timeout, adjustable from
+30 seconds to one hour under **AI Assistance** for slower hardware and cold
+model loads. Automatic process control is restricted to localhost endpoints.
 
 ## Architecture
 

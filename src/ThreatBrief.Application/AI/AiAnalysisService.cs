@@ -44,7 +44,7 @@ public sealed class AiAnalysisService(
                 settings.Endpoint,
                 settings.Model,
                 httpClient,
-                settings.RequestTimeoutSeconds),
+                settings.OllamaRequestTimeoutSeconds),
             _ => throw new InvalidOperationException(
                 $"Unsupported AI provider '{settings.Provider}'.")
         };
