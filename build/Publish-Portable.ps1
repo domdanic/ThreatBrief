@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
     [string]$Runtime = 'win-x64',
-    [string]$VersionLabel = 'v1.1.1'
+    [string]$VersionLabel = 'v1.1.2'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -28,6 +28,8 @@ dotnet publish (Join-Path $projectRoot 'src\ThreatBrief.Desktop') `
 
 Copy-Item -LiteralPath (Join-Path $projectRoot 'README.md') `
     -Destination (Join-Path $resolvedOutput 'README.md')
+Copy-Item -LiteralPath (Join-Path $projectRoot 'LICENSE') `
+    -Destination (Join-Path $resolvedOutput 'LICENSE')
 
 $configPath = Join-Path $resolvedOutput 'data\config'
 New-Item -ItemType Directory -Force -Path $configPath | Out-Null

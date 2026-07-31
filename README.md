@@ -1,5 +1,8 @@
 # ThreatBrief
 
+[![CI](https://github.com/domdanic/ThreatBrief/actions/workflows/ci.yml/badge.svg)](https://github.com/domdanic/ThreatBrief/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 ThreatBrief is a portable defensive threat-intelligence collector, reader, and
 triage desk. It combines CISA KEV and NVD vulnerability intelligence with
 optional AlienVault OTX and abuse.ch ThreatFox community feeds, correlates
@@ -12,6 +15,12 @@ duplicate CVEs and indicators, and retains the history locally in SQLite.
 
 The launcher prefers PowerShell 7 (`pwsh.exe`) and falls back to Windows
 PowerShell (`powershell.exe`) when PowerShell 7 is unavailable.
+
+## License
+
+ThreatBrief is released under the [MIT License](LICENSE). It may be used,
+modified, and distributed for personal or commercial purposes. The software is
+provided without warranty; see the license text for the complete terms.
 
 ## Run
 
@@ -241,8 +250,10 @@ Supported provider modes:
 
 - **OpenAI Compatible** — defaults to `https://api.openai.com/v1`; the endpoint
   and model are configurable for compatible services.
-- **Ollama** — connects to a separately installed local Ollama service, normally
-  at `http://localhost:11434`. ThreatBrief does not bundle Ollama or a model.
+- **Ollama** — connects to a local Ollama service, normally at
+  `http://localhost:11434`. ThreatBrief does not bundle Ollama or a model in its
+  standard download. When a standalone portable Ollama bundle is available,
+  ThreatBrief can start it automatically and stop only the process it started.
 - **None** — the default; no AI network activity occurs.
 
 The first AI workflow is **Explain this threat**. It produces a structured
@@ -260,6 +271,16 @@ The API key can be entered under **AI Assistance** or supplied with
 variables take precedence. Portable keys are stored in
 `data\config\secrets.local.json`, which is excluded from Git and backups.
 OpenAI-compatible Responses API requests set `store` to `false`.
+
+For portable Ollama, enable **Automatically start portable Ollama with
+ThreatBrief**, leave **Stop it when ThreatBrief exits** selected, and enter the
+bundle folder. Relative paths are resolved from the ThreatBrief folder; the
+default `..\PortableOllama` finds sibling ThreatBrief and PortableOllama folders.
+The folder picker stores a relative path when both folders are on the same
+drive, preserving portability. Standard Ollama installation folders containing
+`ollama.exe` are also supported. Use **Detect models** to populate the installed
+model list from the configured Ollama endpoint. Manual model entry remains
+available. Automatic process control is restricted to localhost endpoints.
 
 ## Architecture
 

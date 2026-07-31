@@ -30,6 +30,7 @@ public sealed partial class MainWindow : Window
     private readonly ThreatRefreshService _refreshService;
     private readonly SqliteIntelligenceRepository _intelligenceRepository;
     private readonly SqliteAiAnalysisRepository _aiRepository;
+    private readonly LocalOllamaLifecycleService _ollamaLifecycle = new();
     private readonly string _appRoot;
     private readonly string _dataRoot;
     private ThreatRecord? _selected;
@@ -52,6 +53,7 @@ public sealed partial class MainWindow : Window
         _aiRepository = new SqliteAiAnalysisRepository(paths.DatabasePath);
         _refreshService = new ThreatRefreshService(_repository, appRoot, paths.Root);
         Opened += MainWindow_OnOpened;
+        Closing += MainWindow_OnClosing;
     }
 
     private async void MainWindow_OnOpened(object? sender, EventArgs e)
@@ -60,6 +62,7 @@ public sealed partial class MainWindow : Window
         _watchlist = await WatchlistSettings.LoadOrCreateAsync(
             _dataRoot);
         await LoadSettingsControlsAsync();
+        await AutoStartOllamaAsync(_watchlist.Ai);
         await LoadThreatsAsync();
         await LoadIntelligenceAsync();
         if (_watchlist.Updates.CheckOnStartup
@@ -251,6 +254,9 @@ public sealed partial class MainWindow : Window
         AiEndpointBox.Text = _watchlist.Ai.Endpoint;
         AiModelBox.Text = _watchlist.Ai.Model;
         AiApiKeyBox.Text = secrets.AiApiKey;
+        AiAutoStartOllamaBox.IsChecked = _watchlist.Ai.AutoStartLocalOllama;
+        AiStopOllamaOnExitBox.IsChecked = _watchlist.Ai.StopLocalOllamaOnExit;
+        AiLocalOllamaPathBox.Text = _watchlist.Ai.LocalOllamaPath;
         AiProviderBox.SelectedItem = AiProviderBox.Items
             .OfType<ComboBoxItem>()
             .FirstOrDefault(item => string.Equals(
@@ -297,7 +303,10 @@ public sealed partial class MainWindow : Window
                     ?? AiProviders.None,
                 Endpoint = (AiEndpointBox.Text ?? string.Empty).Trim(),
                 Model = (AiModelBox.Text ?? string.Empty).Trim(),
-                RequestTimeoutSeconds = _watchlist.Ai.RequestTimeoutSeconds
+                RequestTimeoutSeconds = _watchlist.Ai.RequestTimeoutSeconds,
+                AutoStartLocalOllama = AiAutoStartOllamaBox.IsChecked == true,
+                StopLocalOllamaOnExit = AiStopOllamaOnExitBox.IsChecked == true,
+                LocalOllamaPath = (AiLocalOllamaPathBox.Text ?? string.Empty).Trim()
             }
         };
         var configDirectory = Path.Combine(_dataRoot, "config");
@@ -322,6 +331,7 @@ public sealed partial class MainWindow : Window
         AiStatusText.Text = settings.Ai.Enabled
             ? $"Enabled: {settings.Ai.Provider} / {settings.Ai.Model}"
             : "AI assistance is disabled.";
+        await AutoStartOllamaAsync(settings.Ai);
         await LoadThreatsAsync();
     }
 
@@ -331,6 +341,7 @@ public sealed partial class MainWindow : Window
         {
             AiStatusText.Text = "Testing AI connection...";
             var settings = ReadAiSettingsFromControls();
+            await AutoStartOllamaAsync(settings);
             var secrets = await SecretSettings.LoadAsync(_dataRoot) with
             {
                 AiApiKey = string.IsNullOrWhiteSpace(AiApiKeyBox.Text)
@@ -359,8 +370,119 @@ public sealed partial class MainWindow : Window
                 ?? AiProviders.None,
             Endpoint = (AiEndpointBox.Text ?? string.Empty).Trim(),
             Model = (AiModelBox.Text ?? string.Empty).Trim(),
-            RequestTimeoutSeconds = _watchlist.Ai.RequestTimeoutSeconds
+            RequestTimeoutSeconds = _watchlist.Ai.RequestTimeoutSeconds,
+            AutoStartLocalOllama = AiAutoStartOllamaBox.IsChecked == true,
+            StopLocalOllamaOnExit = AiStopOllamaOnExitBox.IsChecked == true,
+            LocalOllamaPath = (AiLocalOllamaPathBox.Text ?? string.Empty).Trim()
         };
+
+    private async Task AutoStartOllamaAsync(AiSettings settings)
+    {
+        if (!settings.Enabled
+            || !settings.AutoStartLocalOllama
+            || !string.Equals(settings.Provider, AiProviders.Ollama, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        try
+        {
+            AiStatusText.Text = await _ollamaLifecycle.EnsureStartedAsync(
+                _appRoot,
+                settings.LocalOllamaPath,
+                settings.Endpoint);
+        }
+        catch (Exception exception)
+        {
+            AiStatusText.Text = $"Ollama auto-start failed: {exception.Message}";
+        }
+    }
+
+    private void MainWindow_OnClosing(object? sender, WindowClosingEventArgs e)
+    {
+        if (_watchlist.Ai.StopLocalOllamaOnExit)
+        {
+            _ollamaLifecycle.StopOwnedProcess();
+        }
+    }
+
+    private async void BrowseOllamaFolderButton_OnClick(object? sender, RoutedEventArgs e)
+    {
+        var folders = await StorageProvider.OpenFolderPickerAsync(
+            new FolderPickerOpenOptions
+            {
+                Title = "Select portable Ollama folder",
+                AllowMultiple = false
+            });
+        if (folders.Count > 0
+            && folders[0].TryGetLocalPath() is { } localPath)
+        {
+            var relativePath = Path.GetRelativePath(_appRoot, localPath);
+            AiLocalOllamaPathBox.Text = Path.IsPathRooted(relativePath)
+                ? localPath
+                : relativePath;
+        }
+    }
+
+    private async void DetectOllamaModelsButton_OnClick(object? sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var settings = ReadAiSettingsFromControls();
+            if (!string.Equals(settings.Provider, AiProviders.Ollama, StringComparison.Ordinal))
+            {
+                AiStatusText.Text = "Select Ollama as the AI provider before detecting models.";
+                return;
+            }
+
+            AiStatusText.Text = "Detecting installed Ollama models...";
+            await AutoStartOllamaAsync(settings);
+            if (!Uri.TryCreate(settings.Endpoint, UriKind.Absolute, out var endpoint))
+            {
+                throw new InvalidOperationException("Enter a valid Ollama endpoint.");
+            }
+
+            using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
+            var json = await client.GetStringAsync(new Uri(endpoint, "/api/tags"));
+            using var document = JsonDocument.Parse(json);
+            var models = document.RootElement.GetProperty("models")
+                .EnumerateArray()
+                .Select(model => model.GetProperty("name").GetString())
+                .Where(name => !string.IsNullOrWhiteSpace(name))
+                .Cast<string>()
+                .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+            AiInstalledModelsBox.ItemsSource = models;
+            if (models.Length == 0)
+            {
+                AiStatusText.Text = "Connected to Ollama, but no installed models were found.";
+                return;
+            }
+
+            var selected = models.FirstOrDefault(model => string.Equals(
+                    model,
+                    AiModelBox.Text,
+                    StringComparison.OrdinalIgnoreCase))
+                ?? models[0];
+            AiInstalledModelsBox.SelectedItem = selected;
+            AiModelBox.Text = selected;
+            AiStatusText.Text = $"Detected {models.Length} installed Ollama model(s).";
+        }
+        catch (Exception exception)
+        {
+            AiStatusText.Text = $"Model detection failed: {exception.Message}";
+        }
+    }
+
+    private void AiInstalledModelsBox_OnSelectionChanged(
+        object? sender,
+        SelectionChangedEventArgs e)
+    {
+        if (AiInstalledModelsBox.SelectedItem is string model)
+        {
+            AiModelBox.Text = model;
+        }
+    }
 
     private async void RefreshCommunityButton_OnClick(object? sender, RoutedEventArgs e)
     {

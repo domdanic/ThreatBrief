@@ -25,6 +25,61 @@ try
     paths.EnsureCreated();
     Assert(Directory.Exists(paths.ReportsPath), "Portable report directory should be created");
 
+    Assert(LocalOllamaLifecycleService.IsLocalEndpoint("http://127.0.0.1:11434"),
+        "Ollama lifecycle should accept the IPv4 loopback endpoint");
+    Assert(LocalOllamaLifecycleService.IsLocalEndpoint("http://localhost:11434"),
+        "Ollama lifecycle should accept localhost");
+    Assert(!LocalOllamaLifecycleService.IsLocalEndpoint("http://192.168.1.10:11434"),
+        "Ollama lifecycle should reject LAN endpoints");
+    Assert(!LocalOllamaLifecycleService.IsLocalEndpoint("https://api.example.com"),
+        "Ollama lifecycle should reject remote endpoints");
+
+    var fakeAppRoot = Path.Combine(testRoot, "ThreatBrief");
+    var fakeBundleRoot = Path.Combine(testRoot, "PortableOllama");
+    Directory.CreateDirectory(Path.Combine(fakeBundleRoot, "bin"));
+    Directory.CreateDirectory(fakeAppRoot);
+    await File.WriteAllTextAsync(Path.Combine(fakeBundleRoot, "bin", "ollama.exe"), string.Empty);
+    Assert(string.Equals(
+            LocalOllamaLifecycleService.ResolveBundlePath(
+                fakeAppRoot,
+                "..\\PortableOllama"),
+            fakeBundleRoot,
+            StringComparison.OrdinalIgnoreCase),
+        "Ollama lifecycle should resolve a portable sibling bundle");
+    var fakeInstalledRoot = Path.Combine(testRoot, "InstalledOllama");
+    Directory.CreateDirectory(fakeInstalledRoot);
+    await File.WriteAllTextAsync(Path.Combine(fakeInstalledRoot, "ollama.exe"), string.Empty);
+    Assert(string.Equals(
+            LocalOllamaLifecycleService.ResolveBundlePath(
+                fakeAppRoot,
+                fakeInstalledRoot),
+            fakeInstalledRoot,
+            StringComparison.OrdinalIgnoreCase),
+        "Ollama lifecycle should accept a standard installation folder");
+
+    var integrationBundle = Environment.GetEnvironmentVariable(
+        "THREATBRIEF_TEST_OLLAMA_BUNDLE");
+    if (!string.IsNullOrWhiteSpace(integrationBundle))
+    {
+        using var lifecycle = new LocalOllamaLifecycleService();
+        var startMessage = await lifecycle.EnsureStartedAsync(
+            fakeAppRoot,
+            integrationBundle,
+            "http://127.0.0.1:11434");
+        Assert(startMessage.Contains("started by ThreatBrief", StringComparison.Ordinal),
+            "Ollama integration test should start the portable process");
+        Assert(lifecycle.OwnsProcess,
+            "Ollama integration test should track process ownership");
+        using var integrationClient = new HttpClient();
+        var tags = await integrationClient.GetStringAsync(
+            "http://127.0.0.1:11434/api/tags");
+        Assert(tags.Contains("qwen3.5:9b", StringComparison.Ordinal),
+            "Ollama integration test should expose the bundled model");
+        lifecycle.StopOwnedProcess();
+        Assert(!lifecycle.OwnsProcess,
+            "Ollama integration test should release the owned process");
+    }
+
     var repository = new SqliteThreatRepository(paths.DatabasePath);
     var first = new ThreatRecord
     {
