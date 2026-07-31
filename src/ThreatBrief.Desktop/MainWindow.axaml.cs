@@ -12,6 +12,8 @@ using ThreatBrief.Application.Connectors;
 using ThreatBrief.Application.Maintenance;
 using ThreatBrief.Application.Reports;
 using ThreatBrief.Application.Updates;
+using ThreatBrief.Application.AI;
+using ThreatBrief.Core.AI;
 using ThreatBrief.Core.Configuration;
 using ThreatBrief.Core.Intelligence;
 using ThreatBrief.Core.Models;
@@ -27,6 +29,7 @@ public sealed partial class MainWindow : Window
     private readonly SqliteThreatRepository _repository;
     private readonly ThreatRefreshService _refreshService;
     private readonly SqliteIntelligenceRepository _intelligenceRepository;
+    private readonly SqliteAiAnalysisRepository _aiRepository;
     private readonly string _dataRoot;
     private ThreatRecord? _selected;
     private IntelligenceReport? _selectedReport;
@@ -43,6 +46,7 @@ public sealed partial class MainWindow : Window
         _dataRoot = paths.Root;
         _repository = new SqliteThreatRepository(paths.DatabasePath);
         _intelligenceRepository = new SqliteIntelligenceRepository(paths.DatabasePath);
+        _aiRepository = new SqliteAiAnalysisRepository(paths.DatabasePath);
         _refreshService = new ThreatRefreshService(_repository, appRoot, paths.Root);
         Opened += MainWindow_OnOpened;
     }
@@ -239,6 +243,20 @@ public sealed partial class MainWindow : Window
         WatchlistTermsBox.Text = string.Join(Environment.NewLine, _watchlist.Terms);
         GitHubRepositoryBox.Text = _watchlist.Updates.GitHubRepository;
         CheckUpdatesBox.IsChecked = _watchlist.Updates.CheckOnStartup;
+        AiEnabledBox.IsChecked = _watchlist.Ai.Enabled;
+        AiConsentBox.IsChecked = _watchlist.Ai.DataSharingConsent;
+        AiEndpointBox.Text = _watchlist.Ai.Endpoint;
+        AiModelBox.Text = _watchlist.Ai.Model;
+        AiApiKeyBox.Text = secrets.AiApiKey;
+        AiProviderBox.SelectedItem = AiProviderBox.Items
+            .OfType<ComboBoxItem>()
+            .FirstOrDefault(item => string.Equals(
+                item.Content?.ToString(),
+                _watchlist.Ai.Provider,
+                StringComparison.Ordinal));
+        AiStatusText.Text = _watchlist.Ai.Enabled
+            ? $"Enabled: {_watchlist.Ai.Provider} / {_watchlist.Ai.Model}"
+            : "AI assistance is disabled.";
         VersionText.Text =
             $"ThreatBrief {Assembly.GetEntryAssembly()?.GetName().Version?.ToString(3) ?? "development"}";
     }
@@ -266,6 +284,16 @@ public sealed partial class MainWindow : Window
                     ? null
                     : GitHubRepositoryBox.Text.Trim(),
                 Channel = "stable"
+            },
+            Ai = new AiSettings
+            {
+                Enabled = AiEnabledBox.IsChecked == true,
+                DataSharingConsent = AiConsentBox.IsChecked == true,
+                Provider = (AiProviderBox.SelectedItem as ComboBoxItem)?.Content?.ToString()
+                    ?? AiProviders.None,
+                Endpoint = (AiEndpointBox.Text ?? string.Empty).Trim(),
+                Model = (AiModelBox.Text ?? string.Empty).Trim(),
+                RequestTimeoutSeconds = _watchlist.Ai.RequestTimeoutSeconds
             }
         };
         var configDirectory = Path.Combine(_dataRoot, "config");
@@ -280,13 +308,55 @@ public sealed partial class MainWindow : Window
                 {
                     OtxApiKey = string.IsNullOrWhiteSpace(OtxKeyBox.Text) ? null : OtxKeyBox.Text,
                     AbuseChAuthKey =
-                        string.IsNullOrWhiteSpace(AbuseKeyBox.Text) ? null : AbuseKeyBox.Text
+                        string.IsNullOrWhiteSpace(AbuseKeyBox.Text) ? null : AbuseKeyBox.Text,
+                    AiApiKey =
+                        string.IsNullOrWhiteSpace(AiApiKeyBox.Text) ? null : AiApiKeyBox.Text
                 },
                 new JsonSerializerOptions { WriteIndented = true }));
         _watchlist = settings;
         CommunityStatusText.Text = "Settings saved.";
+        AiStatusText.Text = settings.Ai.Enabled
+            ? $"Enabled: {settings.Ai.Provider} / {settings.Ai.Model}"
+            : "AI assistance is disabled.";
         await LoadThreatsAsync();
     }
+
+    private async void TestAiConnectionButton_OnClick(object? sender, RoutedEventArgs e)
+    {
+        try
+        {
+            AiStatusText.Text = "Testing AI connection...";
+            var settings = ReadAiSettingsFromControls();
+            var secrets = await SecretSettings.LoadAsync(_dataRoot) with
+            {
+                AiApiKey = string.IsNullOrWhiteSpace(AiApiKeyBox.Text)
+                    ? null
+                    : AiApiKeyBox.Text
+            };
+            var provider = new AiAnalysisService(
+                    _aiRepository,
+                    settings,
+                    secrets)
+                .CreateProvider();
+            AiStatusText.Text = await provider.TestConnectionAsync();
+        }
+        catch (Exception exception)
+        {
+            AiStatusText.Text = $"Connection test failed: {exception.Message}";
+        }
+    }
+
+    private AiSettings ReadAiSettingsFromControls() =>
+        new()
+        {
+            Enabled = AiEnabledBox.IsChecked == true,
+            DataSharingConsent = AiConsentBox.IsChecked == true,
+            Provider = (AiProviderBox.SelectedItem as ComboBoxItem)?.Content?.ToString()
+                ?? AiProviders.None,
+            Endpoint = (AiEndpointBox.Text ?? string.Empty).Trim(),
+            Model = (AiModelBox.Text ?? string.Empty).Trim(),
+            RequestTimeoutSeconds = _watchlist.Ai.RequestTimeoutSeconds
+        };
 
     private async void RefreshCommunityButton_OnClick(object? sender, RoutedEventArgs e)
     {
@@ -421,10 +491,11 @@ public sealed partial class MainWindow : Window
         }
     }
 
-    private void ThreatList_OnSelectionChanged(object? sender, SelectionChangedEventArgs e)
+    private async void ThreatList_OnSelectionChanged(object? sender, SelectionChangedEventArgs e)
     {
         _selected = (ThreatList.SelectedItem as ThreatListItem)?.Record;
         ShowSelectedThreat();
+        await LoadStoredAiAnalysisAsync();
     }
 
     private void ShowSelectedThreat()
@@ -486,6 +557,78 @@ public sealed partial class MainWindow : Window
         _settingTriage = false;
         ReadButton.Content = _selected.IsRead ? "Mark unread" : "Mark read";
         SaveButton.Content = _selected.IsSaved ? "Unsave" : "Save";
+        AiAnalysisPanel.IsVisible = false;
+        AiAnalysisMeta.Text = _watchlist.Ai.Enabled
+            ? $"Ready: {_watchlist.Ai.Provider} / {_watchlist.Ai.Model}"
+            : "AI is off until configured and explicitly enabled.";
+    }
+
+    private async Task LoadStoredAiAnalysisAsync()
+    {
+        if (_selected is null)
+        {
+            return;
+        }
+
+        var stored = await _aiRepository.GetLatestAsync(_selected.Id);
+        if (stored is not null)
+        {
+            ShowAiAnalysis(stored);
+        }
+    }
+
+    private async void AnalyzeThreatButton_OnClick(object? sender, RoutedEventArgs e) =>
+        await AnalyzeSelectedThreatAsync(forceRefresh: false);
+
+    private async void RegenerateThreatButton_OnClick(object? sender, RoutedEventArgs e) =>
+        await AnalyzeSelectedThreatAsync(forceRefresh: true);
+
+    private async Task AnalyzeSelectedThreatAsync(bool forceRefresh)
+    {
+        if (_selected is null)
+        {
+            return;
+        }
+
+        SetBusy(true, forceRefresh ? "Regenerating AI analysis..." : "Analyzing threat...");
+        try
+        {
+            var secrets = await SecretSettings.LoadAsync(_dataRoot);
+            var stored = await new AiAnalysisService(
+                    _aiRepository,
+                    _watchlist.Ai,
+                    secrets)
+                .AnalyzeAsync(
+                    _selected,
+                    _watchlist.Match(_selected),
+                    forceRefresh);
+            ShowAiAnalysis(stored);
+        }
+        catch (Exception exception)
+        {
+            await ShowErrorAsync("AI analysis unavailable", exception.Message);
+        }
+        finally
+        {
+            SetBusy(false, string.Empty);
+        }
+    }
+
+    private void ShowAiAnalysis(StoredThreatAnalysis stored)
+    {
+        var analysis = stored.Analysis;
+        AiAnalysisPanel.IsVisible = true;
+        AiAnalysisMeta.Text =
+            $"{stored.Provider} / {stored.Model} • {stored.GeneratedAt} • {analysis.Confidence} confidence";
+        AiSummaryText.Text = analysis.Summary;
+        AiImpactText.Text = analysis.OrganizationalImpact;
+        AiExploitationText.Text = analysis.ExploitationPath;
+        AiActionsText.Text = analysis.RecommendedActions.Count == 0
+            ? "No actions returned."
+            : string.Join(Environment.NewLine, analysis.RecommendedActions.Select(item => $"• {item}"));
+        AiCaveatsText.Text = analysis.Caveats.Count == 0
+            ? "No caveats returned."
+            : string.Join(Environment.NewLine, analysis.Caveats.Select(item => $"• {item}"));
     }
 
     private async void TriageStatusBox_OnSelectionChanged(object? sender, SelectionChangedEventArgs e)

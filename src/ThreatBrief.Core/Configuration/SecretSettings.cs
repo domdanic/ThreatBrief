@@ -6,6 +6,7 @@ public sealed record SecretSettings
 {
     public string? OtxApiKey { get; init; }
     public string? AbuseChAuthKey { get; init; }
+    public string? AiApiKey { get; init; }
 
     public static async Task<SecretSettings> LoadAsync(
         string dataRoot,
@@ -23,8 +24,10 @@ public sealed record SecretSettings
         {
             OtxApiKey = Environment.GetEnvironmentVariable("OTX_API_KEY") ?? fromFile.OtxApiKey,
             AbuseChAuthKey =
-                Environment.GetEnvironmentVariable("ABUSECH_AUTH_KEY") ?? fromFile.AbuseChAuthKey
+                Environment.GetEnvironmentVariable("ABUSECH_AUTH_KEY") ?? fromFile.AbuseChAuthKey,
+            AiApiKey = Environment.GetEnvironmentVariable("THREATBRIEF_AI_API_KEY")
+                ?? Environment.GetEnvironmentVariable("OPENAI_API_KEY")
+                ?? fromFile.AiApiKey
         };
     }
 }
-

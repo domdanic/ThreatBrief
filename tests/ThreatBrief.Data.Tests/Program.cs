@@ -6,8 +6,12 @@ using ThreatBrief.Core.Watchlist;
 using ThreatBrief.Core.Triage;
 using ThreatBrief.Application.Connectors;
 using ThreatBrief.Application.Maintenance;
+using ThreatBrief.Application.AI;
+using ThreatBrief.Core.AI;
+using ThreatBrief.Core.Configuration;
 using System.Net;
 using System.Text;
+using System.Text.Json;
 using System.IO.Compression;
 
 var testRoot = Path.Combine(Path.GetTempPath(), $"ThreatBrief.Data.Tests.{Guid.NewGuid():N}");
@@ -199,6 +203,98 @@ try
     Assert(reports.Count == 1 && reports[0].CveIds.Contains(first.Id),
         "Reports should expose related canonical CVEs");
 
+    var analysisJson =
+        """
+        {
+          "summary": "A known-exploited vulnerability affects the selected product.",
+          "organizationalImpact": "Compromise may affect systems matching the local watchlist.",
+          "exploitationPath": "The supplied record indicates network-reachable exploitation.",
+          "recommendedActions": ["Validate exposure", "Apply vendor remediation"],
+          "caveats": ["Confirm the installed product version"],
+          "confidence": "High"
+        }
+        """;
+    var openAiResponse = JsonSerializer.Serialize(new
+    {
+        output = new[]
+        {
+            new
+            {
+                content = new[]
+                {
+                    new { type = "output_text", text = analysisJson }
+                }
+            }
+        }
+    });
+    var openAiHandler = new StubHandler(openAiResponse);
+    var openAiProvider = new OpenAiCompatibleProvider(
+        "https://ai.example.test/v1",
+        "test-model",
+        "test-key",
+        new HttpClient(openAiHandler));
+    var openAiAnalysis = await openAiProvider.AnalyzeThreatAsync(first, ["Contoso"]);
+    Assert(openAiAnalysis.Confidence == "High",
+        "OpenAI-compatible structured analysis should deserialize");
+    Assert(openAiHandler.LastRequestBody?.Contains("\"store\":false") == true,
+        "OpenAI-compatible requests should disable provider storage");
+    Assert(openAiHandler.LastRequestBody?.Contains("THREAT_DATA_BEGIN") == true,
+        "AI requests should delimit normalized threat data");
+
+    var ollamaResponse = JsonSerializer.Serialize(new
+    {
+        message = new { content = analysisJson }
+    });
+    var ollamaHandler = new StubHandler(ollamaResponse);
+    var ollamaProvider = new OllamaProvider(
+        "http://localhost:11434",
+        "local-model",
+        new HttpClient(ollamaHandler));
+    var ollamaAnalysis = await ollamaProvider.AnalyzeThreatAsync(first, []);
+    Assert(ollamaAnalysis.RecommendedActions.Count == 2,
+        "Ollama structured analysis should deserialize");
+    Assert(ollamaHandler.LastRequestUri?.AbsolutePath == "/api/chat",
+        "Ollama analysis should use the configured local chat endpoint");
+
+    var aiRepository = new SqliteAiAnalysisRepository(paths.DatabasePath);
+    var disabledAi = new AiAnalysisService(
+        aiRepository,
+        new AiSettings(),
+        new SecretSettings());
+    var consentRejected = false;
+    try
+    {
+        disabledAi.CreateProvider();
+    }
+    catch (InvalidOperationException)
+    {
+        consentRejected = true;
+    }
+    Assert(consentRejected, "AI should reject use while disabled or lacking consent");
+
+    var aiSettings = new AiSettings
+    {
+        Enabled = true,
+        DataSharingConsent = true,
+        Provider = AiProviders.OpenAiCompatible,
+        Endpoint = "https://ai.example.test/v1",
+        Model = "test-model"
+    };
+    var cacheHandler = new StubHandler(openAiResponse);
+    var aiService = new AiAnalysisService(
+        aiRepository,
+        aiSettings,
+        new SecretSettings { AiApiKey = "test-key" },
+        new HttpClient(cacheHandler));
+    var generated = await aiService.AnalyzeAsync(first, ["Contoso"]);
+    var cached = await aiService.AnalyzeAsync(first, ["Contoso"]);
+    Assert(generated.InputFingerprint == cached.InputFingerprint,
+        "Unchanged threat analysis should reuse its fingerprinted cache");
+    Assert(cacheHandler.RequestCount == 1,
+        "Cached AI analysis should avoid a second provider request");
+    Assert((await aiRepository.GetLatestAsync(first.Id))?.Model == "test-model",
+        "AI audit history should store the provider model");
+
     var configDirectory = Path.Combine(paths.Root, "config");
     Directory.CreateDirectory(configDirectory);
     var configPath = Path.Combine(configDirectory, "watchlist.json");
@@ -255,11 +351,22 @@ void Assert(bool condition, string message)
 
 sealed class StubHandler(string json) : HttpMessageHandler
 {
-    protected override Task<HttpResponseMessage> SendAsync(
+    public int RequestCount { get; private set; }
+    public Uri? LastRequestUri { get; private set; }
+    public string? LastRequestBody { get; private set; }
+
+    protected override async Task<HttpResponseMessage> SendAsync(
         HttpRequestMessage request,
-        CancellationToken cancellationToken) =>
-        Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+        CancellationToken cancellationToken)
+    {
+        RequestCount++;
+        LastRequestUri = request.RequestUri;
+        LastRequestBody = request.Content is null
+            ? null
+            : await request.Content.ReadAsStringAsync(cancellationToken);
+        return new HttpResponseMessage(HttpStatusCode.OK)
         {
             Content = new StringContent(json, Encoding.UTF8, "application/json")
-        });
+        };
+    }
 }

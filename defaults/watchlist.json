@@ -11,6 +11,14 @@
     "GitHubRepository": "domdanic/ThreatBrief",
     "Channel": "stable"
   },
+  "Ai": {
+    "Enabled": false,
+    "DataSharingConsent": false,
+    "Provider": "None",
+    "Endpoint": "https://api.openai.com/v1",
+    "Model": "gpt-5.6-sol",
+    "RequestTimeoutSeconds": 90
+  },
   "Terms": [
     "Microsoft",
     "Windows",

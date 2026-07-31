@@ -124,6 +124,7 @@ The desktop dashboard provides:
 - Daily briefing export in Markdown, HTML, and JSON
 - Portable backup and safety-checked restore
 - Opt-in GitHub release checks with no silent installation
+- Optional AI-assisted threat explanations through OpenAI-compatible or Ollama endpoints
 
 Create a self-contained Windows build with:
 
@@ -135,8 +136,8 @@ dotnet publish .\src\ThreatBrief.Desktop `
   --output .\dist\ThreatBrief-win-x64
 ```
 
-Or run `.\build\Publish-Portable.ps1`. The resulting
-`dist\ThreatBrief-v1-win-x64` folder is the portable application.
+Or run `.\build\Publish-Portable.ps1`. The resulting versioned folder under
+`dist\` is the portable application.
 
 ### NVD enrichment and watchlist
 
@@ -220,6 +221,37 @@ at startup by default. It only reports that an update is available and directs
 the user to the release; it never downloads or replaces its own executable silently.
 The release channel setting allows the same core application to support future
 standard and AI package assets.
+
+### Optional AI assistance
+
+ThreatBrief 1.1 adds AI capability to the standard application, disabled by
+default. ThreatBrief never contacts an AI endpoint until the user enables AI,
+chooses a provider, and explicitly consents to sending the selected normalized
+threat record to that endpoint.
+
+Supported provider modes:
+
+- **OpenAI Compatible** — defaults to `https://api.openai.com/v1`; the endpoint
+  and model are configurable for compatible services.
+- **Ollama** — connects to a separately installed local Ollama service, normally
+  at `http://localhost:11434`. ThreatBrief does not bundle Ollama or a model.
+- **None** — the default; no AI network activity occurs.
+
+The first AI workflow is **Explain this threat**. It produces a structured
+summary, organizational impact, exploitation path, recommended actions,
+caveats, and confidence. Feed descriptions are delimited and treated as
+untrusted data. The model receives no command, browser, filesystem, triage,
+merge, or deletion tools.
+
+Every accepted result is cached and audited in the portable SQLite database
+with its threat ID, input fingerprint, provider, model, and generation time.
+Unchanged records reuse the cached result unless **Regenerate** is selected.
+
+The API key can be entered under **AI Assistance** or supplied with
+`THREATBRIEF_AI_API_KEY`. `OPENAI_API_KEY` is also recognized. Environment
+variables take precedence. Portable keys are stored in
+`data\config\secrets.local.json`, which is excluded from Git and backups.
+OpenAI-compatible Responses API requests set `store` to `false`.
 
 ## Architecture
 

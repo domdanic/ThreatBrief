@@ -219,6 +219,39 @@
                 <Button Content="Open CISA catalog" Click="OpenCisaButton_OnClick" />
                 <Button Content="Open NVD record" Click="OpenNvdButton_OnClick" />
               </StackPanel>
+              <Border Background="#18252A" BorderBrush="#315D69" BorderThickness="1"
+                      CornerRadius="6" Padding="14">
+                <StackPanel Spacing="8">
+                  <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+                    <StackPanel>
+                      <TextBlock Text="AI ASSISTANCE" Foreground="#70C8FF"
+                                 FontWeight="Bold" />
+                      <TextBlock x:Name="AiAnalysisMeta"
+                                 Text="AI is off until configured and explicitly enabled."
+                                 Classes="muted" TextWrapping="Wrap" />
+                    </StackPanel>
+                    <Button Grid.Column="1" Content="Explain this threat"
+                            Click="AnalyzeThreatButton_OnClick" />
+                    <Button Grid.Column="2" Content="Regenerate"
+                            Click="RegenerateThreatButton_OnClick" />
+                  </Grid>
+                  <StackPanel x:Name="AiAnalysisPanel" IsVisible="False" Spacing="8">
+                    <TextBlock Text="SUMMARY" Classes="muted" FontWeight="SemiBold" />
+                    <TextBlock x:Name="AiSummaryText" TextWrapping="Wrap" />
+                    <TextBlock Text="ORGANIZATIONAL IMPACT" Classes="muted"
+                               FontWeight="SemiBold" />
+                    <TextBlock x:Name="AiImpactText" TextWrapping="Wrap" />
+                    <TextBlock Text="EXPLOITATION PATH" Classes="muted"
+                               FontWeight="SemiBold" />
+                    <TextBlock x:Name="AiExploitationText" TextWrapping="Wrap" />
+                    <TextBlock Text="RECOMMENDED ACTIONS" Classes="muted"
+                               FontWeight="SemiBold" />
+                    <TextBlock x:Name="AiActionsText" TextWrapping="Wrap" />
+                    <TextBlock Text="CAVEATS" Classes="muted" FontWeight="SemiBold" />
+                    <TextBlock x:Name="AiCaveatsText" TextWrapping="Wrap" />
+                  </StackPanel>
+                </StackPanel>
+              </Border>
               <TextBlock Text="This product uses data from the NVD API but is not endorsed or certified by the NVD."
                          Classes="muted" FontSize="11" />
             </StackPanel>
@@ -300,6 +333,62 @@
             </Grid>
           </Border>
         </Grid>
+      </TabItem>
+
+      <TabItem Header="AI Assistance">
+        <ScrollViewer>
+          <Grid ColumnDefinitions="*,*" ColumnSpacing="16" Margin="22,16,22,22">
+            <Border Classes="panel">
+              <StackPanel Spacing="12">
+                <TextBlock Text="AI PROVIDER" Foreground="#70C8FF"
+                           FontWeight="Bold" />
+                <TextBlock Text="AI is disabled by default. ThreatBrief never sends data until you enable it and provide explicit consent."
+                           TextWrapping="Wrap" />
+                <CheckBox x:Name="AiEnabledBox" Content="Enable AI assistance" />
+                <TextBlock Text="Provider" Classes="muted" />
+                <ComboBox x:Name="AiProviderBox" SelectedIndex="0">
+                  <ComboBoxItem Content="None" />
+                  <ComboBoxItem Content="OpenAI Compatible" />
+                  <ComboBoxItem Content="Ollama" />
+                </ComboBox>
+                <TextBlock Text="Endpoint" Classes="muted" />
+                <TextBox x:Name="AiEndpointBox"
+                         PlaceholderText="https://api.openai.com/v1 or http://localhost:11434" />
+                <TextBlock Text="Model" Classes="muted" />
+                <TextBox x:Name="AiModelBox" PlaceholderText="gpt-5.6-sol" />
+                <TextBlock Text="API key (not required for local Ollama)" Classes="muted" />
+                <TextBox x:Name="AiApiKeyBox" PasswordChar="●" />
+                <CheckBox x:Name="AiConsentBox"
+                          Content="I authorize sending selected threat data to this configured endpoint." />
+                <TextBlock Text="Feed content is treated as untrusted data. AI cannot run commands, browse, change triage, merge, or delete records."
+                           Foreground="#FFCC66" TextWrapping="Wrap" />
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <Button Content="Save AI settings" Classes="primary"
+                          Click="SaveSettingsButton_OnClick" />
+                  <Button Content="Test connection"
+                          Click="TestAiConnectionButton_OnClick" />
+                </StackPanel>
+                <TextBlock x:Name="AiStatusText" Classes="muted" TextWrapping="Wrap" />
+              </StackPanel>
+            </Border>
+            <Border Grid.Column="1" Classes="panel">
+              <StackPanel Spacing="12">
+                <TextBlock Text="HOW AI ASSISTANCE WORKS" Classes="muted"
+                           FontWeight="SemiBold" />
+                <TextBlock Text="ThreatBrief sends only the selected normalized threat record and its local watchlist matches. Responses must match a fixed analysis schema and are cached in the portable database."
+                           TextWrapping="Wrap" />
+                <TextBlock Text="Stored with every analysis:" Foreground="#70C8FF"
+                           FontWeight="SemiBold" Margin="0,8,0,0" />
+                <TextBlock Text="• Threat ID and input fingerprint&#x0a;• Provider and model&#x0a;• Generation time&#x0a;• Structured analysis and confidence"
+                           TextWrapping="Wrap" />
+                <TextBlock Text="OpenAI-compatible requests use stateless responses with storage disabled. Ollama requests stay local when the endpoint is localhost."
+                           TextWrapping="Wrap" />
+                <TextBlock Text="API keys are stored in the portable secrets file and excluded from ThreatBrief backups. The THREATBRIEF_AI_API_KEY or OPENAI_API_KEY environment variable takes precedence."
+                           Classes="muted" TextWrapping="Wrap" />
+              </StackPanel>
+            </Border>
+          </Grid>
+        </ScrollViewer>
       </TabItem>
 
       <TabItem Header="Sources &amp; Settings">

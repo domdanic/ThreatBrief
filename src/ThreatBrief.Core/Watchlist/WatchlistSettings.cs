@@ -1,4 +1,5 @@
 using System.Text.Json;
+using ThreatBrief.Core.AI;
 
 namespace ThreatBrief.Core.Watchlist;
 
@@ -7,6 +8,7 @@ public sealed record WatchlistSettings
     public int AlertWindowDays { get; init; } = 30;
     public ConnectorSettings Connectors { get; init; } = new();
     public UpdateSettings Updates { get; init; } = new();
+    public AiSettings Ai { get; init; } = new();
 
     public IReadOnlyList<string> Terms { get; init; } =
     [
