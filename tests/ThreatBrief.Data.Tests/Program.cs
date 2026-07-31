@@ -318,6 +318,32 @@ try
         "Ollama structured analysis should deserialize");
     Assert(ollamaHandler.LastRequestUri?.AbsolutePath == "/api/chat",
         "Ollama analysis should use the configured local chat endpoint");
+    Assert(ollamaHandler.LastRequestBody?.Contains("\"think\":false") == true,
+        "Ollama analysis should explicitly disable thinking output");
+    Assert(ollamaHandler.LastRequestBody?.Contains("\"num_predict\":768") == true,
+        "Ollama analysis should enforce a finite generation ceiling");
+    Assert(ollamaHandler.LastRequestBody?.Contains("\"maxLength\":600") == true,
+        "Ollama structured output should bound narrative field lengths");
+    Assert(ollamaHandler.LastRequestBody?.Contains("\"maxItems\":5") == true,
+        "Ollama structured output should bound recommended action count");
+    Assert(ollamaHandler.LastRequestBody?.Contains("\"minItems\":1") == true,
+        "Ollama structured output should require at least one recommended action");
+
+    if (string.Equals(
+            Environment.GetEnvironmentVariable("THREATBRIEF_TEST_OLLAMA_ANALYSIS"),
+            "1",
+            StringComparison.Ordinal))
+    {
+        var liveOllama = new OllamaProvider(
+            "http://127.0.0.1:11434",
+            "qwen3.5:9b",
+            timeoutSeconds: 300);
+        var liveAnalysis = await liveOllama.AnalyzeThreatAsync(first, ["Contoso"]);
+        Assert(!string.IsNullOrWhiteSpace(liveAnalysis.Summary),
+            "Live Ollama structured analysis should return a summary");
+        Assert(liveAnalysis.RecommendedActions.Count is > 0 and <= 5,
+            "Live Ollama structured analysis should return a bounded action list");
+    }
 
     var aiRepository = new SqliteAiAnalysisRepository(paths.DatabasePath);
     var disabledAi = new AiAnalysisService(

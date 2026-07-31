@@ -59,8 +59,10 @@ public sealed class OllamaProvider : IAiProvider
         {
             model = _model,
             stream = false,
+            think = false,
+            keep_alive = "15m",
             format = AiPrompt.JsonSchema,
-            options = new { temperature = 0 },
+            options = new { temperature = 0, num_predict = 768 },
             messages = new[]
             {
                 new { role = "system", content = AiPrompt.Instructions },
