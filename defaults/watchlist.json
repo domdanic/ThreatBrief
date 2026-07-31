@@ -9,7 +9,8 @@
   "Updates": {
     "CheckOnStartup": true,
     "GitHubRepository": "domdanic/ThreatBrief",
-    "Channel": "stable"
+    "Channel": "stable",
+    "DismissedVersion": null
   },
   "Ai": {
     "Enabled": false,

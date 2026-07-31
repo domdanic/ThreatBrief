@@ -11,7 +11,7 @@
     Background="#0D0F13">
   <Grid RowDefinitions="Auto,Auto,Auto,*">
     <Border Background="#15181E" Padding="22,16">
-      <Grid ColumnDefinitions="*,Auto">
+      <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto">
         <StackPanel>
           <TextBlock Text="THREATBRIEF" FontSize="25" FontWeight="Bold" Foreground="#F2F4F8" />
           <TextBlock Text="Defensive vulnerability intelligence" Classes="muted" />
@@ -22,6 +22,26 @@
           <Button x:Name="RefreshButton" Content="Refresh intelligence" Classes="primary"
                   Padding="18,10" Click="RefreshButton_OnClick" />
         </StackPanel>
+        <Border x:Name="UpdateBanner" Grid.Row="1" Grid.ColumnSpan="2"
+                IsVisible="False" Margin="0,14,0,0" Padding="14,10"
+                Background="#392D18" BorderBrush="#A77A29" BorderThickness="1"
+                CornerRadius="6">
+          <Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="8">
+            <StackPanel>
+              <TextBlock x:Name="UpdateBannerTitle" Text="A ThreatBrief update is available"
+                         Foreground="#FFCC66" FontSize="16" FontWeight="Bold" />
+              <TextBlock x:Name="UpdateBannerDetail" Classes="muted"
+                         Text="Review the release or download and restart." />
+            </StackPanel>
+            <Button Grid.Column="1" Content="View release"
+                    Click="ViewUpdateReleaseButton_OnClick" />
+            <Button x:Name="InstallUpdateButton" Grid.Column="2"
+                    Content="Download and restart" Classes="primary"
+                    Click="InstallUpdateButton_OnClick" />
+            <Button Grid.Column="3" Content="Dismiss this version"
+                    Click="DismissUpdateButton_OnClick" />
+          </Grid>
+        </Border>
       </Grid>
     </Border>
 

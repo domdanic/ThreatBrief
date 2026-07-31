@@ -3,7 +3,7 @@
     <OutputType>WinExe</OutputType>
     <AssemblyName>ThreatBrief</AssemblyName>
     <RootNamespace>ThreatBrief.Desktop</RootNamespace>
-    <Version>1.1.0</Version>
+    <Version>1.1.1</Version>
     <Product>ThreatBrief</Product>
     <Description>Portable defensive threat intelligence briefing and triage.</Description>
     <Authors>ThreatBrief Contributors</Authors>

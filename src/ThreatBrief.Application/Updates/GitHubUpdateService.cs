@@ -12,6 +12,7 @@ public sealed record UpdateCheckResult(
     string? ReleaseName,
     string? ReleaseUrl,
     string? DownloadUrl,
+    string? ChecksumUrl,
     string Message);
 
 public sealed class GitHubUpdateService(HttpClient? httpClient = null)
@@ -31,7 +32,7 @@ public sealed class GitHubUpdateService(HttpClient? httpClient = null)
             || repository.Split('/', StringSplitOptions.RemoveEmptyEntries).Length != 2)
         {
             return new UpdateCheckResult(
-                false, false, current, null, null, null, null,
+                false, false, current, null, null, null, null, null,
                 "Set the GitHub repository as owner/repository after publication.");
         }
 
@@ -44,7 +45,7 @@ public sealed class GitHubUpdateService(HttpClient? httpClient = null)
         if (!response.IsSuccessStatusCode)
         {
             return new UpdateCheckResult(
-                true, false, current, null, null, null, null,
+                true, false, current, null, null, null, null, null,
                 $"GitHub update check returned {(int)response.StatusCode}.");
         }
 
@@ -55,12 +56,14 @@ public sealed class GitHubUpdateService(HttpClient? httpClient = null)
         if (!Version.TryParse(tag, out var latest))
         {
             return new UpdateCheckResult(
-                true, false, current, null, null, null, null,
+                true, false, current, null, null, null, null, null,
                 $"Release tag '{tag}' is not a semantic version.");
         }
 
         var isAi = string.Equals(channel, "ai", StringComparison.OrdinalIgnoreCase);
         string? downloadUrl = null;
+        string? downloadName = null;
+        string? checksumUrl = null;
         if (root.TryGetProperty("assets", out var assets))
         {
             foreach (var asset in assets.EnumerateArray())
@@ -69,9 +72,24 @@ public sealed class GitHubUpdateService(HttpClient? httpClient = null)
                 var aiAsset = name.Contains("ai", StringComparison.OrdinalIgnoreCase);
                 if (name.Contains("win-x64", StringComparison.OrdinalIgnoreCase) && aiAsset == isAi)
                 {
-                    downloadUrl = GetString(asset, "browser_download_url");
-                    break;
+                    if (name.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
+                    {
+                        downloadName = name;
+                        downloadUrl = GetString(asset, "browser_download_url");
+                    }
                 }
+            }
+
+            if (downloadName is not null)
+            {
+                var checksumName = downloadName + ".sha256";
+                checksumUrl = assets.EnumerateArray()
+                    .Where(asset => string.Equals(
+                        GetString(asset, "name"),
+                        checksumName,
+                        StringComparison.OrdinalIgnoreCase))
+                    .Select(asset => GetString(asset, "browser_download_url"))
+                    .FirstOrDefault();
             }
         }
 
@@ -84,6 +102,7 @@ public sealed class GitHubUpdateService(HttpClient? httpClient = null)
             GetString(root, "name"),
             GetString(root, "html_url"),
             downloadUrl,
+            checksumUrl,
             available
                 ? $"ThreatBrief {latest} is available."
                 : $"ThreatBrief {current} is current.");

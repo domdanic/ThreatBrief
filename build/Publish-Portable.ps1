@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
     [string]$Runtime = 'win-x64',
-    [string]$VersionLabel = 'v1.1.0'
+    [string]$VersionLabel = 'v1.1.1'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -41,6 +41,12 @@ if (Test-Path -LiteralPath $archivePath) {
     Remove-Item -LiteralPath $archivePath -Force
 }
 Compress-Archive -LiteralPath $resolvedOutput -DestinationPath $archivePath
+$hash = (Get-FileHash -LiteralPath $archivePath -Algorithm SHA256).Hash.ToLowerInvariant()
+$checksumPath = "$archivePath.sha256"
+[IO.File]::WriteAllText(
+    $checksumPath,
+    "$hash  $([IO.Path]::GetFileName($archivePath))$([Environment]::NewLine)")
 
 Write-Host "Portable package created at $resolvedOutput"
 Write-Host "Release archive created at $archivePath"
+Write-Host "Checksum created at $checksumPath"

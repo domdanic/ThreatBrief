@@ -124,6 +124,7 @@ The desktop dashboard provides:
 - Daily briefing export in Markdown, HTML, and JSON
 - Portable backup and safety-checked restore
 - Opt-in GitHub release checks with no silent installation
+- Prominent notifications and verified portable download-and-restart updates
 - Optional AI-assisted threat explanations through OpenAI-compatible or Ollama endpoints
 
 Create a self-contained Windows build with:
@@ -217,10 +218,17 @@ required for the standalone v1 application.
 
 ThreatBrief checks
 [domdanic/ThreatBrief releases](https://github.com/domdanic/ThreatBrief/releases)
-at startup by default. It only reports that an update is available and directs
-the user to the release; it never downloads or replaces its own executable silently.
-The release channel setting allows the same core application to support future
-standard and AI package assets.
+at startup by default. Available updates appear in a persistent banner with
+options to view the release, dismiss that version, or explicitly
+**Download and restart**.
+
+Automatic portable updates require both a versioned ZIP and its matching
+`.sha256` release asset. ThreatBrief downloads both from HTTPS GitHub release
+URLs, caps download size, verifies SHA-256, validates archive paths, creates a
+safety backup, and stages the release before closing. A separate PowerShell 5.1
+helper preserves the complete `data` directory, replaces application files,
+restarts ThreatBrief, and restores the prior files if replacement or initial
+startup fails. Updates are never downloaded or applied silently.
 
 ### Optional AI assistance
 

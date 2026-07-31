@@ -79,4 +79,5 @@ public sealed record UpdateSettings
     public bool CheckOnStartup { get; init; } = true;
     public string? GitHubRepository { get; init; } = "domdanic/ThreatBrief";
     public string Channel { get; init; } = "stable";
+    public string? DismissedVersion { get; init; }
 }

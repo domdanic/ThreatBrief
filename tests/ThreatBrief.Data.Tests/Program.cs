@@ -7,11 +7,13 @@ using ThreatBrief.Core.Triage;
 using ThreatBrief.Application.Connectors;
 using ThreatBrief.Application.Maintenance;
 using ThreatBrief.Application.AI;
+using ThreatBrief.Application.Updates;
 using ThreatBrief.Core.AI;
 using ThreatBrief.Core.Configuration;
 using System.Net;
 using System.Text;
 using System.Text.Json;
+using System.Security.Cryptography;
 using System.IO.Compression;
 
 var testRoot = Path.Combine(Path.GetTempPath(), $"ThreatBrief.Data.Tests.{Guid.NewGuid():N}");
@@ -295,6 +297,93 @@ try
     Assert((await aiRepository.GetLatestAsync(first.Id))?.Model == "test-model",
         "AI audit history should store the provider model");
 
+    var updateMetadata =
+        """
+        {
+          "tag_name": "v9.9.0",
+          "name": "ThreatBrief 9.9.0",
+          "html_url": "https://github.com/domdanic/ThreatBrief/releases/tag/v9.9.0",
+          "assets": [
+            {
+              "name": "ThreatBrief-v9.9.0-win-x64.zip",
+              "browser_download_url": "https://github.com/download/update.zip"
+            },
+            {
+              "name": "ThreatBrief-v9.9.0-win-x64.zip.sha256",
+              "browser_download_url": "https://github.com/download/update.zip.sha256"
+            }
+          ]
+        }
+        """;
+    var updateCheck = await new GitHubUpdateService(
+            new HttpClient(new StubHandler(updateMetadata)))
+        .CheckAsync("domdanic/ThreatBrief", "stable");
+    Assert(updateCheck.UpdateAvailable,
+        "A newer semantic GitHub release should trigger an update");
+    Assert(updateCheck.DownloadUrl?.EndsWith("update.zip") == true,
+        "Update checks should select the portable ZIP");
+    Assert(updateCheck.ChecksumUrl?.EndsWith(".sha256") == true,
+        "Update checks should require the matching checksum asset");
+
+    byte[] updateArchive;
+    using (var archiveBuffer = new MemoryStream())
+    {
+        using (var archive = new ZipArchive(archiveBuffer, ZipArchiveMode.Create, leaveOpen: true))
+        {
+            var executableEntry = archive.CreateEntry(
+                "ThreatBrief-v9.9.0-win-x64/ThreatBrief.exe");
+            await using (var entryStream = executableEntry.Open())
+            {
+                await entryStream.WriteAsync("test executable"u8.ToArray());
+            }
+            var readmeEntry = archive.CreateEntry(
+                "ThreatBrief-v9.9.0-win-x64/README.md");
+            await using (var entryStream = readmeEntry.Open())
+            {
+                await entryStream.WriteAsync("test release"u8.ToArray());
+            }
+        }
+        updateArchive = archiveBuffer.ToArray();
+    }
+    var updateChecksum = Encoding.UTF8.GetBytes(
+        $"{Convert.ToHexString(SHA256.HashData(updateArchive))}  update.zip");
+    var updateAppRoot = Path.Combine(testRoot, "installed");
+    Directory.CreateDirectory(updateAppRoot);
+    await File.WriteAllTextAsync(
+        Path.Combine(updateAppRoot, "ThreatBrief.exe"),
+        "old executable");
+    var updateAssets = new UpdateAssetHandler(updateArchive, updateChecksum);
+    var preparedUpdate = await new PortableUpdateService(
+            updateAppRoot,
+            paths.Root,
+            new HttpClient(updateAssets))
+        .PrepareAsync(updateCheck);
+    Assert(File.Exists(Path.Combine(preparedUpdate.PayloadDirectory, "ThreatBrief.exe")),
+        "Verified updates should extract a portable executable into staging");
+    Assert(File.Exists(preparedUpdate.HelperScriptPath),
+        "Update preparation should create an external replacement helper");
+    Assert(File.Exists(preparedUpdate.SafetyBackupPath),
+        "Update preparation should create a portable safety backup");
+    Assert(updateAssets.RequestCount == 2,
+        "Update preparation should download exactly the ZIP and checksum");
+    var checksumRejected = false;
+    try
+    {
+        await new PortableUpdateService(
+                updateAppRoot,
+                paths.Root,
+                new HttpClient(new UpdateAssetHandler(
+                    updateArchive,
+                    Encoding.UTF8.GetBytes($"{new string('0', 64)}  update.zip"))))
+            .PrepareAsync(updateCheck);
+    }
+    catch (InvalidDataException)
+    {
+        checksumRejected = true;
+    }
+    Assert(checksumRejected,
+        "Portable updates should reject a ZIP that does not match its published checksum");
+
     var configDirectory = Path.Combine(paths.Root, "config");
     Directory.CreateDirectory(configDirectory);
     var configPath = Path.Combine(configDirectory, "watchlist.json");
@@ -368,5 +457,26 @@ sealed class StubHandler(string json) : HttpMessageHandler
         {
             Content = new StringContent(json, Encoding.UTF8, "application/json")
         };
+    }
+}
+
+sealed class UpdateAssetHandler(byte[] archive, byte[] checksum) : HttpMessageHandler
+{
+    public int RequestCount { get; private set; }
+
+    protected override Task<HttpResponseMessage> SendAsync(
+        HttpRequestMessage request,
+        CancellationToken cancellationToken)
+    {
+        RequestCount++;
+        var bytes = request.RequestUri?.AbsolutePath.EndsWith(
+            ".sha256",
+            StringComparison.OrdinalIgnoreCase) == true
+            ? checksum
+            : archive;
+        return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new ByteArrayContent(bytes)
+        });
     }
 }

@@ -30,9 +30,11 @@ public sealed partial class MainWindow : Window
     private readonly ThreatRefreshService _refreshService;
     private readonly SqliteIntelligenceRepository _intelligenceRepository;
     private readonly SqliteAiAnalysisRepository _aiRepository;
+    private readonly string _appRoot;
     private readonly string _dataRoot;
     private ThreatRecord? _selected;
     private IntelligenceReport? _selectedReport;
+    private UpdateCheckResult? _availableUpdate;
     private WatchlistSettings _watchlist = new();
     private bool _loaded;
     private bool _settingTriage;
@@ -41,6 +43,7 @@ public sealed partial class MainWindow : Window
     {
         InitializeComponent();
         var appRoot = ThreatBriefRuntime.FindAppRoot();
+        _appRoot = appRoot;
         var paths = ThreatBriefRuntime.GetDataPaths(appRoot);
         paths.EnsureCreated();
         _dataRoot = paths.Root;
@@ -283,7 +286,8 @@ public sealed partial class MainWindow : Window
                 GitHubRepository = string.IsNullOrWhiteSpace(GitHubRepositoryBox.Text)
                     ? null
                     : GitHubRepositoryBox.Text.Trim(),
-                Channel = "stable"
+                Channel = "stable",
+                DismissedVersion = _watchlist.Updates.DismissedVersion
             },
             Ai = new AiSettings
             {
@@ -396,15 +400,94 @@ public sealed partial class MainWindow : Window
                 GitHubRepositoryBox.Text,
                 "stable");
             UpdateStatusText.Text = result.Message;
-            if (result.UpdateAvailable && result.ReleaseUrl is not null)
+            _availableUpdate = result.UpdateAvailable ? result : null;
+            var dismissed = result.LatestVersion is not null
+                && string.Equals(
+                    _watchlist.Updates.DismissedVersion,
+                    result.LatestVersion.ToString(3),
+                    StringComparison.OrdinalIgnoreCase);
+            UpdateBanner.IsVisible = result.UpdateAvailable && !dismissed;
+            if (result.UpdateAvailable)
             {
-                UpdateStatusText.Text += " Use the release page to download it.";
+                UpdateBannerTitle.Text =
+                    $"ThreatBrief {result.LatestVersion?.ToString(3)} is available";
+                InstallUpdateButton.IsEnabled =
+                    result.DownloadUrl is not null && result.ChecksumUrl is not null;
+                UpdateBannerDetail.Text = InstallUpdateButton.IsEnabled
+                    ? "A verified portable update can be downloaded and applied with one restart."
+                    : "Automatic installation is unavailable because this release has no ZIP checksum.";
+                UpdateStatusText.Text += " Use the banner to review or install it.";
             }
         }
         catch (Exception exception)
         {
             UpdateStatusText.Text = $"Update check failed: {exception.Message}";
         }
+    }
+
+    private void ViewUpdateReleaseButton_OnClick(object? sender, RoutedEventArgs e)
+    {
+        if (!string.IsNullOrWhiteSpace(_availableUpdate?.ReleaseUrl))
+        {
+            OpenUrl(_availableUpdate.ReleaseUrl);
+        }
+    }
+
+    private async void DismissUpdateButton_OnClick(object? sender, RoutedEventArgs e)
+    {
+        if (_availableUpdate?.LatestVersion is null)
+        {
+            return;
+        }
+
+        _watchlist = _watchlist with
+        {
+            Updates = _watchlist.Updates with
+            {
+                DismissedVersion = _availableUpdate.LatestVersion.ToString(3)
+            }
+        };
+        await SaveWatchlistFileAsync();
+        UpdateBanner.IsVisible = false;
+        UpdateStatusText.Text =
+            $"ThreatBrief {_availableUpdate.LatestVersion.ToString(3)} dismissed. Future versions will still notify you.";
+    }
+
+    private async void InstallUpdateButton_OnClick(object? sender, RoutedEventArgs e)
+    {
+        if (_availableUpdate?.LatestVersion is null
+            || !await ConfirmAsync(
+                "Download and restart ThreatBrief?",
+                $"ThreatBrief {_availableUpdate.LatestVersion.ToString(3)} will be downloaded from GitHub, verified, and applied. Your portable data will be preserved and a safety backup will be created first."))
+        {
+            return;
+        }
+
+        try
+        {
+            SetBusy(true, $"Downloading ThreatBrief {_availableUpdate.LatestVersion.ToString(3)}...");
+            var updater = new PortableUpdateService(_appRoot, _dataRoot);
+            var prepared = await updater.PrepareAsync(_availableUpdate);
+            StatusText.Text = "Update verified. Restarting ThreatBrief...";
+            updater.LaunchAndReplace(prepared, Environment.ProcessId);
+            Close();
+        }
+        catch (Exception exception)
+        {
+            SetBusy(false, string.Empty);
+            await ShowErrorAsync("Automatic update failed", exception.Message);
+        }
+    }
+
+    private async Task SaveWatchlistFileAsync()
+    {
+        var configDirectory = Path.Combine(_dataRoot, "config");
+        Directory.CreateDirectory(configDirectory);
+        await File.WriteAllTextAsync(
+            Path.Combine(configDirectory, "watchlist.json"),
+            JsonSerializer.Serialize(
+                _watchlist,
+                new JsonSerializerOptions { WriteIndented = true }));
     }
 
     private async void GenerateBriefingButton_OnClick(object? sender, RoutedEventArgs e)
