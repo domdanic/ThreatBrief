@@ -56,18 +56,21 @@ internal static class AiPrompt
         additionalProperties = false,
         properties = new
         {
-            summary = new { type = "string" },
-            organizationalImpact = new { type = "string" },
-            exploitationPath = new { type = "string" },
+            summary = new { type = "string", maxLength = 600 },
+            organizationalImpact = new { type = "string", maxLength = 600 },
+            exploitationPath = new { type = "string", maxLength = 600 },
             recommendedActions = new
             {
                 type = "array",
-                items = new { type = "string" }
+                minItems = 1,
+                maxItems = 5,
+                items = new { type = "string", maxLength = 300 }
             },
             caveats = new
             {
                 type = "array",
-                items = new { type = "string" }
+                maxItems = 3,
+                items = new { type = "string", maxLength = 300 }
             },
             confidence = new
             {

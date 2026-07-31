@@ -282,7 +282,9 @@ drive, preserving portability. Standard Ollama installation folders containing
 model list from the configured Ollama endpoint. Manual model entry remains
 available. Ollama requests default to a five-minute timeout, adjustable from
 30 seconds to one hour under **AI Assistance** for slower hardware and cold
-model loads. Automatic process control is restricted to localhost endpoints.
+model loads. Local structured responses use bounded fields and list sizes to
+prevent runaway generation on slower models. Automatic process control is
+restricted to localhost endpoints.
 
 ## Architecture
 
