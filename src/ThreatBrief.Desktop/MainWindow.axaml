@@ -375,9 +375,29 @@
                 <TextBox x:Name="AiEndpointBox"
                          PlaceholderText="https://api.openai.com/v1 or http://localhost:11434" />
                 <TextBlock Text="Model" Classes="muted" />
-                <TextBox x:Name="AiModelBox" PlaceholderText="gpt-5.6-sol" />
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                  <TextBox x:Name="AiModelBox" PlaceholderText="gpt-5.6-sol" />
+                  <Button Grid.Column="1" Content="Detect models"
+                          Click="DetectOllamaModelsButton_OnClick" />
+                </Grid>
+                <ComboBox x:Name="AiInstalledModelsBox"
+                          PlaceholderText="Installed Ollama models"
+                          SelectionChanged="AiInstalledModelsBox_OnSelectionChanged" />
                 <TextBlock Text="API key (not required for local Ollama)" Classes="muted" />
                 <TextBox x:Name="AiApiKeyBox" PasswordChar="●" />
+                <CheckBox x:Name="AiAutoStartOllamaBox"
+                          Content="Automatically start portable Ollama with ThreatBrief" />
+                <CheckBox x:Name="AiStopOllamaOnExitBox"
+                          Content="Stop it when ThreatBrief exits" />
+                <TextBlock Text="Portable Ollama folder" Classes="muted" />
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                  <TextBox x:Name="AiLocalOllamaPathBox"
+                           PlaceholderText="..\PortableOllama" />
+                  <Button Grid.Column="1" Content="Browse..."
+                          Click="BrowseOllamaFolderButton_OnClick" />
+                </Grid>
+                <TextBlock Text="Relative paths are resolved from the ThreatBrief folder. Automatic control is restricted to localhost endpoints."
+                           Classes="muted" TextWrapping="Wrap" />
                 <CheckBox x:Name="AiConsentBox"
                           Content="I authorize sending selected threat data to this configured endpoint." />
                 <TextBlock Text="Feed content is treated as untrusted data. AI cannot run commands, browse, change triage, merge, or delete records."

@@ -15,4 +15,7 @@ public sealed record AiSettings
     public string Endpoint { get; init; } = "https://api.openai.com/v1";
     public string Model { get; init; } = "gpt-5.6-sol";
     public int RequestTimeoutSeconds { get; init; } = 90;
+    public bool AutoStartLocalOllama { get; init; }
+    public bool StopLocalOllamaOnExit { get; init; } = true;
+    public string LocalOllamaPath { get; init; } = "..\\PortableOllama";
 }
